@@ -52,7 +52,7 @@ export class ScanMonitorComponent implements OnInit, OnDestroy, AfterViewInit {
   private countdownTimer: any;
 
   // Topology State
-  showTopology = true;
+  showTopology = false;
   selectedNodeDetails: GridBox | null = null;
   private networkInstance: any;
   private nodesDataset: any;
@@ -74,6 +74,35 @@ export class ScanMonitorComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.gridIps.length === 0) return 0;
     const used = this.onlineCount + this.downCount;
     return Math.round((used / this.gridIps.length) * 100);
+  }
+
+  get osSummary(): { os: string; icon: string; count: number }[] {
+    const counts = new Map<string, number>();
+    this.gridIps.forEach(ip => {
+      if (ip.status === 'alive') {
+        const osName = ip.os || 'Desconocido';
+        counts.set(osName, (counts.get(osName) || 0) + 1);
+      }
+    });
+
+    const summary: { os: string; icon: string; count: number }[] = [];
+    counts.forEach((count, os) => {
+      let icon = 'ri-question-line';
+      if (os.includes('Windows')) icon = 'ri-windows-fill text-info';
+      else if (os.includes('Linux')) icon = 'ri-ubuntu-fill text-warning';
+      else if (os.includes('Router')) icon = 'ri-router-line text-primary';
+      else if (os.includes('Cámara')) icon = 'ri-camera-lens-fill text-danger';
+      else if (os.includes('Impresora')) icon = 'ri-printer-fill text-secondary';
+      else if (os.includes('Móvil')) icon = 'ri-smartphone-line text-success';
+      else if (os.includes('Teléfono VoIP')) icon = 'ri-phone-fill text-primary';
+      else if (os.includes('Apple')) icon = 'ri-apple-fill text-dark';
+      else if (os.includes('Web')) icon = 'ri-server-line text-info';
+      
+      summary.push({ os, icon, count });
+    });
+
+    // Sort descending by count
+    return summary.sort((a, b) => b.count - a.count);
   }
 
   copyToastMessage: string | null = null;

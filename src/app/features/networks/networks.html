@@ -1,7 +1,7 @@
 <div class="row">
   <div class="col-12">
     <div class="page-title-box d-sm-flex align-items-center justify-content-between">
-      <h4 class="mb-sm-0">Gestión de Redes</h4>
+      <h4 class="mb-sm-0">Lista de Redes</h4>
       <div class="page-title-right">
         <button class="btn btn-primary" (click)="openCreateModal()">
           <i class="ri-add-line align-bottom me-1"></i> Agregar Red
@@ -24,64 +24,113 @@
         </div>
       </div>
       <div class="card-body">
+        @if (selectedNetworkIds().length > 0) {
+          <div class="bg-primary-subtle p-3 rounded mb-3 d-flex align-items-center justify-content-between">
+            <div>
+              <span class="fs-14 fw-medium text-primary">
+                {{ selectedNetworkIds().length }} redes seleccionadas
+              </span>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-success" (click)="askBulkActionConfirm('on')">
+                <i class="ri-play-fill align-bottom me-1"></i> Reanudar Monitoreo
+              </button>
+              <button class="btn btn-sm btn-warning" (click)="askBulkActionConfirm('off')">
+                <i class="ri-pause-fill align-bottom me-1"></i> Pausar Monitoreo
+              </button>
+            </div>
+          </div>
+        }
         <div class="table-responsive table-card mb-1">
-          <table class="table align-middle table-nowrap" id="networkTable">
-            <thead class="table-light text-muted">
+          <table class="table align-middle table-nowrap table-hover table-striped mb-0" id="networkTable">
+            <thead class="table-primary text-dark">
               <tr>
+                <th scope="col" style="width: 50px;">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="checkAll" (change)="toggleSelectAll($event)">
+                  </div>
+                </th>
                 <th>ID</th>
                 <th>CIDR</th>
                 <th>VLAN</th>
                 <th>Intervalo</th>
                 <th>Estado</th>
+                <th>Asistencia</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody class="list form-check-all">
-              
+
               @if (isLoading) {
-                <tr>
-                  <td colspan="6" class="text-center p-4">
-                    <div class="spinner-border text-primary" role="status">
-                      <span class="visually-hidden">Loading...</span>
-                    </div>
-                  </td>
-                </tr>
+              <tr>
+                <td colspan="6" class="text-center p-4">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                </td>
+              </tr>
               }
 
               @for (net of networks; track net.id) {
-                <tr>
-                  <td>{{ net.id }}</td>
-                  <td>{{ net.cidr }}</td>
-                  <td>{{ net.vlan_name || 'N/A' }}</td>
-                  <td>{{ net.scan_interval ? (net.scan_interval / 60) : 5 }} mins</td>
-                  <td>
-                    @if (net.is_active) {
-                      <span class="badge bg-success-subtle text-success text-uppercase">Activo</span>
-                    } @else {
-                      <span class="badge bg-danger-subtle text-danger text-uppercase">Inactivo</span>
-                    }
-                  </td>
-                  <td>
-                    <ul class="list-inline hstack gap-2 mb-0">
-                      <li class="list-inline-item edit">
-                        <a href="javascript:void(0);" class="text-primary d-inline-block edit-item-btn" (click)="openEditModal(net)"><i class="ri-pencil-fill fs-16"></i></a>
-                      </li>
-                      <li class="list-inline-item">
-                        <a class="text-danger d-inline-block remove-item-btn" href="javascript:void(0);" (click)="deleteNetwork(net.id)">
-                          <i class="ri-delete-bin-5-fill fs-16"></i>
-                        </a>
-                      </li>
-                    </ul>
-                  </td>
-                </tr>
+              <tr>
+                <th scope="row">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="chk_child" [value]="net.id"
+                      [checked]="selectedNetworkIds().includes(net.id)"
+                      (change)="toggleSelection(net.id, $event)">
+                  </div>
+                </th>
+                <td>{{ net.id }}</td>
+                <td>{{ net.cidr }}</td>
+                <td>{{ net.vlan_name || 'N/A' }}</td>
+                <td>{{ net.scan_interval ? (net.scan_interval / 60) : 5 }} mins</td>
+                <td>
+                  <div class="form-check form-switch form-switch-success form-switch-md">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                      [id]="'switch_' + net.id"
+                      [checked]="net.is_active"
+                      (change)="toggleNetworkStatus(net, $event)">
+                    <label class="form-check-label text-muted fs-12" [for]="'switch_' + net.id">
+                      {{ net.is_active ? 'Monitoreando' : 'Pausado' }}
+                    </label>
+                  </div>
+                </td>
+                <td>
+                  @if (!net.expected_check_in) {
+                    <button class="btn btn-sm btn-soft-success" (click)="openAuditModal(net)" title="Configurar Asistencia">
+                      <i class="ri-add-line align-bottom me-1"></i> Configurar
+                    </button>
+                  } @else {
+                    <button class="btn btn-sm btn-soft-secondary d-flex align-items-center gap-1" (click)="openAuditModal(net)" title="Editar Configuración">
+                      <i class="ri-time-line"></i>
+                      <span class="fs-12">{{ (net.expected_check_in | slice:0:5) }} - {{ (net.expected_check_out | slice:0:5) }}</span>
+                      <i class="ri-pencil-line ms-1 text-muted"></i>
+                    </button>
+                  }
+                </td>
+                <td>
+                  <ul class="list-inline hstack gap-2 mb-0">
+                    <li class="list-inline-item edit">
+                      <a href="javascript:void(0);" class="text-primary d-inline-block edit-item-btn"
+                        (click)="openEditModal(net)"><i class="ri-pencil-fill fs-16"></i></a>
+                    </li>
+                    <li class="list-inline-item">
+                      <a class="text-danger d-inline-block remove-item-btn" href="javascript:void(0);"
+                        (click)="deleteNetwork(net.id)">
+                        <i class="ri-delete-bin-5-fill fs-16"></i>
+                      </a>
+                    </li>
+                  </ul>
+                </td>
+              </tr>
               }
 
               @if (!isLoading && networks.length === 0) {
-                <tr>
-                  <td colspan="6" class="text-center p-4">
-                    <div class="text-muted">No hay redes configuradas.</div>
-                  </td>
-                </tr>
+              <tr>
+                <td colspan="6" class="text-center p-4">
+                  <div class="text-muted">No hay redes configuradas.</div>
+                </td>
+              </tr>
               }
 
             </tbody>
@@ -93,7 +142,8 @@
 </div>
 
 <!-- ========== Modal Crear / Editar ========== -->
-<div class="modal fade zoomIn" id="networkModal" tabindex="-1" aria-labelledby="networkModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+<div class="modal fade zoomIn" id="networkModal" tabindex="-1" aria-labelledby="networkModalLabel" aria-hidden="true"
+  data-bs-backdrop="static" data-bs-keyboard="false">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0">
       <div class="modal-header p-3 bg-info-subtle">
@@ -106,21 +156,16 @@
         <div class="modal-body">
 
           @if (errorMsg()) {
-            <div class="alert alert-danger py-2 mb-3">{{ errorMsg() }}</div>
+          <div class="alert alert-danger py-2 mb-3">{{ errorMsg() }}</div>
           }
 
           <div class="row g-3">
             <div class="col-lg-6">
               <label class="form-label">CIDR <span class="text-danger">*</span></label>
-              <input
-                type="text"
-                class="form-control"
-                [class.is-invalid]="isFieldInvalid('cidr')"
-                placeholder="Ej: 192.168.1.0/24"
-                formControlName="cidr"
-              >
+              <input type="text" class="form-control" [class.is-invalid]="isFieldInvalid('cidr')"
+                placeholder="Ej: 192.168.1.0/24" formControlName="cidr">
               @if (isFieldInvalid('cidr')) {
-                <div class="invalid-feedback">El CIDR es obligatorio.</div>
+              <div class="invalid-feedback">El CIDR es obligatorio.</div>
               }
             </div>
 
@@ -130,28 +175,24 @@
                 <select class="form-select" formControlName="vlan_id" [class.is-invalid]="isFieldInvalid('vlan_id')">
                   <option [ngValue]="null">Seleccione una VLAN</option>
                   @for (vlan of vlans; track vlan.id) {
-                    <option [ngValue]="vlan.id">{{ vlan.name }}</option>
+                  <option [ngValue]="vlan.id">{{ vlan.name }}</option>
                   }
                 </select>
                 <button type="button" class="btn btn-outline-secondary" (click)="openCreateVlanModal()">
                   <i class="ri-add-line"></i>
                 </button>
                 @if (isFieldInvalid('vlan_id')) {
-                  <div class="invalid-feedback d-block">La VLAN es obligatoria.</div>
+                <div class="invalid-feedback d-block">La VLAN es obligatoria.</div>
                 }
               </div>
             </div>
 
             <div class="col-lg-6">
               <label class="form-label">Intervalo de Escaneo (mins) <span class="text-danger">*</span></label>
-              <input
-                type="number"
-                class="form-control"
-                [class.is-invalid]="isFieldInvalid('scan_interval_minutes')"
-                formControlName="scan_interval_minutes"
-              >
+              <input type="number" class="form-control" [class.is-invalid]="isFieldInvalid('scan_interval_minutes')"
+                formControlName="scan_interval_minutes">
               @if (isFieldInvalid('scan_interval_minutes')) {
-                <div class="invalid-feedback">El intervalo debe ser al menos 1 minuto.</div>
+              <div class="invalid-feedback">El intervalo debe ser al menos 1 minuto.</div>
               }
             </div>
             <div class="col-lg-6">
@@ -175,7 +216,8 @@
 </div>
 
 <!-- ========== Modal Crear VLAN ========== -->
-<div class="modal fade zoomIn" id="vlanModal" tabindex="-1" aria-labelledby="vlanModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false" style="z-index: 1060;">
+<div class="modal fade zoomIn" id="vlanModal" tabindex="-1" aria-labelledby="vlanModalLabel" aria-hidden="true"
+  data-bs-backdrop="static" data-bs-keyboard="false" style="z-index: 1060;">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0">
       <div class="modal-header p-3 bg-light">
@@ -185,13 +227,14 @@
       <form autocomplete="off" [formGroup]="vlanForm" (ngSubmit)="saveVlan()">
         <div class="modal-body">
           @if (vlanErrorMsg()) {
-            <div class="alert alert-danger py-2 mb-3">{{ vlanErrorMsg() }}</div>
+          <div class="alert alert-danger py-2 mb-3">{{ vlanErrorMsg() }}</div>
           }
           <div class="mb-3">
             <label class="form-label">Nombre <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" [class.is-invalid]="isVlanFieldInvalid('name')" placeholder="Ej: VLAN RRHH" formControlName="name">
+            <input type="text" class="form-control" [class.is-invalid]="isVlanFieldInvalid('name')"
+              placeholder="Ej: VLAN RRHH" formControlName="name">
             @if (isVlanFieldInvalid('name')) {
-              <div class="invalid-feedback">El nombre es obligatorio.</div>
+            <div class="invalid-feedback">El nombre es obligatorio.</div>
             }
           </div>
           <div class="mb-3">
@@ -208,18 +251,64 @@
   </div>
 </div>
 
-<!-- Toast éxito -->
-@if (successMsg()) {
-  <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
-    <div class="toast show align-items-center text-bg-success border-0" role="alert">
-      <div class="d-flex">
-        <div class="toast-body">
-          <i class="ri-checkbox-circle-line me-2"></i>{{ successMsg() }}
-        </div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" (click)="successMsg.set(null)"></button>
+<!-- ========== Modal Configuración Asistencia ========== -->
+<div class="modal fade zoomIn" id="auditConfigModal" tabindex="-1" aria-labelledby="auditConfigModalLabel" aria-hidden="true"
+  data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0">
+      <div class="modal-header p-3 bg-light">
+        <h5 class="modal-title" id="auditConfigModalLabel">Configurar Horario de Asistencia</h5>
+        <button type="button" class="btn-close" (click)="closeAuditModal()"></button>
       </div>
+      <form autocomplete="off" [formGroup]="auditForm" (ngSubmit)="saveAuditConfig()">
+        <div class="modal-body">
+          <div class="alert alert-info border-0 d-flex align-items-center mb-4">
+            <i class="ri-information-line fs-20 me-2"></i>
+            <div>Esta configuración aplica a todos los dispositivos auditados de esta sede/red.</div>
+          </div>
+          
+          <div class="row g-3">
+            <div class="col-lg-6">
+              <label class="form-label">Hora de Ingreso <span class="text-danger">*</span></label>
+              <input type="time" class="form-control" formControlName="expected_check_in" [class.is-invalid]="isAuditFieldInvalid('expected_check_in')">
+            </div>
+            
+            <div class="col-lg-6">
+              <label class="form-label">Hora de Salida <span class="text-danger">*</span></label>
+              <input type="time" class="form-control" formControlName="expected_check_out" [class.is-invalid]="isAuditFieldInvalid('expected_check_out')">
+            </div>
+
+            <div class="col-lg-12">
+              <label class="form-label">Minutos de Tolerancia <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" class="form-control" formControlName="tolerance_minutes" min="0" max="120" [class.is-invalid]="isAuditFieldInvalid('tolerance_minutes')">
+                <span class="input-group-text">minutos</span>
+              </div>
+              <small class="text-muted">Tiempo de gracia antes de marcar tardanza.</small>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" (click)="closeAuditModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Horario</button>
+        </div>
+      </form>
     </div>
   </div>
+</div>
+
+<!-- Toast éxito -->
+@if (successMsg()) {
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
+  <div class="toast show align-items-center text-bg-success border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body">
+        <i class="ri-checkbox-circle-line me-2"></i>{{ successMsg() }}
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" (click)="successMsg.set(null)"></button>
+    </div>
+  </div>
+</div>
 }
 
 <!-- ========== Modal Eliminar ========== -->
@@ -234,12 +323,43 @@
           <i class="ri-delete-bin-line display-5 text-danger"></i>
           <div class="mt-4 pt-2 fs-15 mx-4 mx-sm-5">
             <h4>¿Estás seguro?</h4>
-            <p class="text-muted mx-4 mb-0">¿Estás seguro de que deseas eliminar esta red? Esta acción no se puede deshacer.</p>
+            <p class="text-muted mx-4 mb-0">¿Estás seguro de que deseas eliminar esta red? Esta acción no se puede
+              deshacer.</p>
           </div>
         </div>
         <div class="d-flex gap-2 justify-content-center mt-4 mb-2">
           <button type="button" class="btn w-sm btn-light" data-bs-dismiss="modal">Cerrar</button>
           <button type="button" class="btn w-sm btn-danger" (click)="confirmDelete()">Sí, Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Confirmación Redes -->
+<div class="modal fade" id="networkBulkConfirmModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="false" style="background-color: rgba(0, 0, 0, 0.5); z-index: 1055;">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 overflow-hidden">
+      <div class="modal-body text-center p-4">
+        <div class="mt-4">
+          <div class="fs-15 mx-4 mx-sm-5">
+            <h4 class="mb-3">¿Confirmar Acción Múltiple?</h4>
+            <p class="text-muted mb-4">
+              Estás a punto de 
+              <strong [class.text-success]="pendingBulkAction === 'on'" [class.text-warning]="pendingBulkAction === 'off'">
+                {{ pendingBulkAction === 'on' ? 'Reanudar' : 'Pausar' }} el monitoreo
+              </strong> 
+              en <strong>{{ selectedNetworkIds().length }}</strong> redes.
+            </p>
+          </div>
+        </div>
+        <div class="d-flex gap-2 justify-content-center mt-4 mb-2">
+          <button type="button" class="btn w-sm btn-light border" data-bs-dismiss="modal">
+            <i class="ri-close-line align-bottom me-1"></i> Cancelar
+          </button>
+          <button type="button" class="btn w-sm" [class.btn-success]="pendingBulkAction === 'on'" [class.btn-warning]="pendingBulkAction === 'off'" (click)="executeBulkAction()">
+            <i class="ri-check-line align-bottom me-1"></i> Confirmar
+          </button>
         </div>
       </div>
     </div>

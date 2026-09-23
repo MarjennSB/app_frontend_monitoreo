@@ -43,21 +43,12 @@
           </div>
         </div>
 
-        <!-- Switch Topología / Cuadrícula -->
-        <div class="btn-group" role="group">
-          <button type="button" class="btn btn-sm btn-outline-primary" [class.active]="showTopology" (click)="toggleTopologyView(true)">
-            <i class="ri-node-tree align-middle me-1"></i> Topología
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-primary" [class.active]="!showTopology" (click)="toggleTopologyView(false)">
-            <i class="ri-grid-fill align-middle me-1"></i> Cuadrícula
-          </button>
-        </div>
-        
+
         <!-- Leyenda visual -->
         <div class="d-flex gap-3 fs-13 fw-medium text-muted">
           <span class="d-flex align-items-center gap-1"><span class="d-inline-block bg-success" style="width: 10px; height: 10px; border-radius: 50%;"></span> Online ({{ onlineCount }})</span>
           <span class="d-flex align-items-center gap-1"><span class="d-inline-block bg-danger" style="width: 10px; height: 10px; border-radius: 50%;"></span> Caído ({{ downCount }})</span>
-          <span class="d-flex align-items-center gap-1"><span class="d-inline-block bg-secondary" style="width: 10px; height: 10px; border-radius: 50%;"></span> Libre ({{ freeCount }})</span>
+          <span class="d-flex align-items-center gap-1"><span class="d-inline-block bg-primary" style="width: 10px; height: 10px; border-radius: 50%;"></span> Libre ({{ freeCount }})</span>
         </div>
       </div>
       <div class="card-body">
@@ -95,6 +86,18 @@
           </div>
         </div>
 
+        <!-- Resumen de Dispositivos por OS -->
+        @if (osSummary.length > 0) {
+          <div class="d-flex flex-wrap justify-content-center gap-4 mb-4">
+            @for (item of osSummary; track item.os) {
+              <span class="d-flex align-items-center gap-2 fs-13 fw-medium text-muted" [title]="item.os">
+                <i [class]="item.icon + ' fs-16'"></i> 
+                {{ item.os }} ({{ item.count }})
+              </span>
+            }
+          </div>
+        }
+
         @if (showTopology) {
           <div id="topology-network" style="width: 100%; height: 65vh; border: 1px solid var(--vz-border-color); border-radius: 8px;"></div>
         } @else {
@@ -107,8 +110,18 @@
                    [title]="'IP: ' + ip.address + '\nHostname: ' + ip.user + '\nEstado: ' + ip.statusLabel + (ip.openPorts ? '\nPuertos: ' + ip.openPorts : '')"
                    (click)="selectedNodeDetails = ip"
                    style="cursor: pointer;">
-                {{ ip.id }}
+                <span class="ip-number">{{ ip.id }}</span>
                 <span class="status-dot"></span>
+                @if (ip.os) {
+                  <i class="os-icon ri-windows-fill" *ngIf="ip.os.includes('Windows')"></i>
+                  <i class="os-icon ri-ubuntu-fill" *ngIf="ip.os.includes('Linux')"></i>
+                  <i class="os-icon ri-apple-fill" *ngIf="ip.os.includes('Apple')"></i>
+                  <i class="os-icon ri-android-fill" *ngIf="ip.os.includes('Android')"></i>
+                  <i class="os-icon ri-webcam-line" *ngIf="ip.os.includes('Cámara')"></i>
+                  <i class="os-icon ri-printer-fill" *ngIf="ip.os.includes('Impresora')"></i>
+                  <i class="os-icon ri-router-fill" *ngIf="ip.os.includes('Router') || ip.os.includes('Infraestructura')"></i>
+                  <i class="os-icon ri-broadcast-fill" *ngIf="ip.os.includes('IoT') || ip.os.includes('Inteligente')"></i>
+                }
               </div>
             }
           </div>

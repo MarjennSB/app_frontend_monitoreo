@@ -29,6 +29,8 @@ export class Networks implements OnInit {
   totalPages = 1;
   totalItems = 0;
 
+  selectedNetworkIds = signal<number[]>([]);
+
   isEditing = signal(false);
   editingId = signal<number | null>(null);
   errorMsg = signal<string | null>(null);
@@ -48,6 +50,13 @@ export class Networks implements OnInit {
     description: [''],
     is_active: [true]
   });
+
+  auditForm = this.fb.nonNullable.group({
+    expected_check_in: ['', [Validators.required]],
+    expected_check_out: ['', [Validators.required]],
+    tolerance_minutes: [15, [Validators.required, Validators.min(0), Validators.max(120)]]
+  });
+  currentAuditNetworkId: number | null = null;
 
   ngOnInit() {
     this.loadVlans();
@@ -151,6 +160,49 @@ export class Networks implements OnInit {
     }
   }
 
+  // --- Asistencia ---
+
+  openAuditModal(network: Network) {
+    this.currentAuditNetworkId = network.id;
+    this.auditForm.reset({
+      expected_check_in: network.expected_check_in ? network.expected_check_in.substring(0, 5) : '08:00',
+      expected_check_out: network.expected_check_out ? network.expected_check_out.substring(0, 5) : '17:00',
+      tolerance_minutes: network.tolerance_minutes ?? 15
+    });
+    this.getModal('auditConfigModal').show();
+  }
+
+  closeAuditModal() {
+    this.getModal('auditConfigModal').hide();
+  }
+
+  saveAuditConfig() {
+    if (this.auditForm.invalid || !this.currentAuditNetworkId) {
+      this.auditForm.markAllAsTouched();
+      return;
+    }
+
+    const formValue = this.auditForm.getRawValue();
+    this.networksService.updateAuditConfig(this.currentAuditNetworkId, formValue).subscribe({
+      next: (res) => {
+        this.getModal('auditConfigModal').hide();
+        this.showSuccess('Configuración de asistencia guardada correctamente.');
+        this.loadNetworks();
+      },
+      error: (err) => {
+        console.error('Error guardando configuración de asistencia', err);
+        alert('Error al guardar configuración de asistencia.');
+      }
+    });
+  }
+
+  isAuditFieldInvalid(field: string): boolean {
+    const control = this.auditForm.get(field);
+    return !!control && control.invalid && (control.dirty || control.touched);
+  }
+
+  // --- End Asistencia ---
+
   networkToDeleteId: number | null = null;
 
   deleteNetwork(id: number) {
@@ -175,6 +227,79 @@ export class Networks implements OnInit {
         }
       });
     }
+  }
+
+  toggleSelectAll(event: any) {
+    if (event.target.checked) {
+      this.selectedNetworkIds.set(this.networks.map(n => n.id));
+    } else {
+      this.selectedNetworkIds.set([]);
+    }
+  }
+
+  toggleSelection(networkId: number, event: any) {
+    const current = this.selectedNetworkIds();
+    if (event.target.checked) {
+      this.selectedNetworkIds.set([...current, networkId]);
+    } else {
+      this.selectedNetworkIds.set(current.filter(id => id !== networkId));
+    }
+  }
+
+  pendingBulkAction: 'on' | 'off' | null = null;
+
+  askBulkActionConfirm(actionType: 'on' | 'off') {
+    this.pendingBulkAction = actionType;
+    const modal = document.getElementById('networkBulkConfirmModal');
+    if (modal) {
+      if ((window as any).bootstrap) {
+         (window as any).bootstrap.Modal.getOrCreateInstance(modal, { backdrop: false }).show();
+      }
+    }
+  }
+
+  executeBulkAction() {
+    if (!this.pendingBulkAction) return;
+    const actionType = this.pendingBulkAction;
+    const ids = this.selectedNetworkIds();
+    if (!ids.length) return;
+
+    const isActive = actionType === 'on';
+    this.networksService.bulkSetStatus(ids, isActive).subscribe({
+      next: () => {
+        this.showSuccess(`Redes ${isActive ? 'activadas' : 'desactivadas'} exitosamente.`);
+        this.selectedNetworkIds.set([]);
+        this.loadNetworks();
+        const modal = document.getElementById('networkBulkConfirmModal');
+        if (modal && (window as any).bootstrap) {
+           (window as any).bootstrap.Modal.getInstance(modal)?.hide();
+        }
+      },
+      error: (err) => {
+        console.error('Error en bulk action', err);
+        this.errorMsg.set('Error al actualizar las redes masivamente.');
+      }
+    });
+  }
+
+  toggleNetworkStatus(network: Network, event: any) {
+    const originalState = network.is_active;
+    const newState = event.target.checked;
+    
+    // Optimistic UI update
+    network.is_active = newState;
+    
+    this.networksService.updateNetwork(network.id, { is_active: newState }).subscribe({
+      next: () => {
+        this.showSuccess(`Monitoreo ${newState ? 'activado' : 'pausado'} para ${network.cidr}.`);
+      },
+      error: (err) => {
+        // Revert on error
+        network.is_active = originalState;
+        event.target.checked = originalState;
+        this.errorMsg.set(err?.error?.message || 'Error al cambiar el estado de la red.');
+      }
+    });
   }
 
   // --- VLAN logic ---

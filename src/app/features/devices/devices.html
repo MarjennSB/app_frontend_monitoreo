@@ -1,21 +1,9 @@
 <div class="row">
   <div class="col-12">
     <div class="page-title-box d-sm-flex align-items-center justify-content-between">
-      <h4 class="mb-sm-0">Inventario de Dispositivos</h4>
-      
+      <h4 class="mb-sm-0">Lista de Dispositivos</h4>
+
       <div class="page-title-right">
-        <!-- Selector de Red -->
-        <div class="d-flex align-items-center gap-2">
-          <label class="form-label mb-0 fw-medium">Red:</label>
-          <select class="form-select form-select-sm w-auto" 
-                  [(ngModel)]="selectedNetworkId" 
-                  (change)="onNetworkChange()">
-            <option [ngValue]="null">Todas las Redes</option>
-            @for (net of networks; track net.id) {
-              <option [value]="net.id">{{ net.vlan_name || 'Sin VLAN' }} ({{ net.cidr }})</option>
-            }
-          </select>
-        </div>
       </div>
     </div>
   </div>
@@ -24,27 +12,26 @@
 <div class="row">
   <div class="col-lg-12">
     <div class="card" id="device-container">
-      <div class="card-header border-bottom-dashed">
+      <div class="card-header border-0">
         <div class="row g-4 align-items-center">
           <div class="col-sm">
             <div>
-              <h5 class="card-title mb-0">Dispositivos Encontrados ({{ filteredDevices().length }})</h5>
+              <h5 class="card-title mb-0">Dispositivos Encontrados ({{ totalItems }})</h5>
             </div>
           </div>
           <div class="col-sm-auto">
-            <div class="d-flex flex-wrap align-items-start gap-2">
+            <div class="d-flex flex-wrap align-items-center gap-2">
               <button type="button" class="btn btn-primary" (click)="onSyncSheets()" [disabled]="isSyncing">
                 @if (isSyncing) {
-                  <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                  Sincronizando...
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                Sincronizando...
                 } @else {
-                  <i class="ri-refresh-line me-1 align-bottom"></i> Sincronizar Google Sheets
+                <i class="ri-refresh-line me-1 align-bottom"></i> Sincronizar Google Sheets
                 }
               </button>
               <div class="search-box">
                 <input type="text" class="form-control bg-light border-light"
-                  placeholder="Buscar por IP, MAC, Hostname..."
-                  [value]="searchTerm()"
+                  placeholder="Buscar por IP, MAC, Hostname..." [value]="searchTerm()"
                   (input)="onSearch($any($event.target).value)">
                 <i class="ri-search-line search-icon"></i>
               </div>
@@ -52,62 +39,153 @@
           </div>
         </div>
       </div>
+
+      <div class="card-body border border-dashed border-end-0 border-start-0">
+        <div class="row g-3">
+          <div class="col-md-3 col-sm-6">
+            <div class="input-group">
+              <span class="input-group-text bg-light border-light" id="basic-addon0"><i class="ri-router-line"></i></span>
+              <select class="form-select bg-light border-light" [(ngModel)]="selectedNetworkId" (change)="onNetworkChange()">
+                <option [ngValue]="null">Todas las Redes</option>
+                @for (net of networks; track net.id) {
+                <option [value]="net.id">{{ net.vlan_name || 'Sin VLAN' }} ({{ net.cidr }})</option>
+                }
+              </select>
+            </div>
+          </div>
+          <div class="col-md-3 col-sm-6">
+            <div class="input-group">
+              <span class="input-group-text bg-light border-light" id="basic-addon1"><i class="ri-wifi-line"></i></span>
+              <select class="form-select bg-light border-light" [(ngModel)]="filterStatus" (change)="onFilterChange()">
+                <option value="all">Todos los Estados</option>
+                <option value="online">Solo Online</option>
+                <option value="offline">Solo Offline</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-md-3 col-sm-6">
+            <div class="input-group">
+              <span class="input-group-text bg-light border-light" id="basic-addon2"><i class="ri-star-line"></i></span>
+              <select class="form-select bg-light border-light" [(ngModel)]="filterVip" (change)="onFilterChange()">
+                <option value="all">Todos los Dispositivos</option>
+                <option value="vip">VIP Críticos</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-md-3 col-sm-6">
+            <div class="input-group">
+              <span class="input-group-text bg-light border-light" id="basic-addon3"><i class="ri-computer-line"></i></span>
+              <select class="form-select bg-light border-light" [(ngModel)]="filterOs" (change)="onFilterChange()">
+                <option value="all">Todos los Sistemas Operativos</option>
+                <option value="Windows">Windows</option>
+                <option value="Linux">Linux</option>
+                <option value="Apple">Apple / Mac</option>
+                <option value="Printer">Impresoras</option>
+                <option value="Cisco">Cisco / Red</option>
+                <option value="Desconocido">Desconocido</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="card-body">
-        <div class="table-responsive table-card mb-1">
-          <table class="table align-middle table-nowrap" id="deviceTable">
-            <thead class="table-light text-muted">
-              <tr>
-                <th>IP</th>
-                <th>MAC Address</th>
-                <th>Hostname</th>
-                <th>Procesador</th>
-                <th>RAM</th>
-                <th>Gráfica</th>
-                <th>Última Vez Visto</th>
-                <th>Estado</th>
-                <th>VIP / Crítico</th>
-                <th>Detalles</th>
-              </tr>
-            </thead>
-            <tbody class="list form-check-all">
-              
-              @if (isLoading) {
+          @if (selectedDeviceIds().length > 0) {
+            <div class="bg-primary-subtle p-3 rounded mb-3 d-flex align-items-center justify-content-between">
+              <div>
+                <span class="fs-14 fw-medium text-primary">
+                  {{ selectedDeviceIds().length }} equipos seleccionados
+                </span>
+              </div>
+              <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-success" (click)="askBulkActionConfirm('vip_on')">
+                  <i class="ri-star-fill align-bottom me-1"></i> Hacer VIP
+                </button>
+                <button class="btn btn-sm btn-warning" (click)="askBulkActionConfirm('vip_off')">
+                  <i class="ri-star-line align-bottom me-1"></i> Quitar VIP
+                </button>
+              </div>
+            </div>
+          }
+          <div class="table-responsive table-card mb-1">
+            <table class="table align-middle table-nowrap table-hover table-striped mb-0" id="deviceTable">
+              <thead class="table-primary text-dark">
                 <tr>
-                  <td colspan="10" class="text-center p-4">
+                  <th scope="col" style="width: 50px;">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="checkAll" value="option" 
+                             (change)="toggleSelectAll($event)"
+                             [checked]="selectedDeviceIds().length > 0 && selectedDeviceIds().length === devices().length">
+                    </div>
+                  </th>
+                  <th>IP</th>
+                  <th>MAC Address</th>
+                  <th>Hostname</th>
+                  <th>Sistema Operativo</th>
+                  <th>Procesador</th>
+                  <th>RAM</th>
+                  <th>Gráfica</th>
+                  <th>Última Vez Visto</th>
+                  <th>Estado</th>
+                  <th>VIP / Crítico</th>
+                  <th>Detalles</th>
+                </tr>
+              </thead>
+              <tbody class="list form-check-all">
+
+                @if (isLoading) {
+                <tr>
+                  <td colspan="11" class="text-center p-4">
                     <div class="spinner-border text-primary" role="status">
                       <span class="visually-hidden">Cargando dispositivos...</span>
                     </div>
                   </td>
                 </tr>
-              }
+                }
 
-              @for (device of filteredDevices(); track device.id) {
+                @for (device of devices(); track device.id) {
                 <tr>
+                  <th scope="row">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" name="chk_child" value="option1"
+                             [checked]="selectedDeviceIds().includes(device.id)"
+                             (change)="toggleSelection(device.id, $event)">
+                    </div>
+                  </th>
                   <td>{{ device.ip }}</td>
                   <td>{{ device.mac_address || 'Desconocida' }}</td>
                   <td>{{ device.hostname || 'Desconocido' }}</td>
+                  <td>
+                    @if (device.inventory?.os_info) {
+                    <span class="fw-medium">{{ device.inventory?.os_info }}</span>
+                    } @else if (device.os_guess && device.os_guess !== 'Desconocido') {
+                    <span class="text-muted"><i class="ri-radar-line me-1" style="opacity: 0.4;"></i>{{ device.os_guess
+                      }}</span>
+                    } @else {
+                    <span class="text-muted">-</span>
+                    }
+                  </td>
                   <td>{{ device.inventory?.cpu_model || '-' }}</td>
                   <td>
                     @if (device.inventory?.ram_mb) {
-                      {{ (device.inventory?.ram_mb || 0) / 1024 }} GB
+                    {{ (device.inventory?.ram_mb || 0) / 1024 }} GB
                     } @else {
-                      -
+                    -
                     }
                   </td>
                   <td>{{ device.inventory?.description || '-' }}</td>
                   <td>{{ device.last_seen_at | date:'short' }}</td>
                   <td>
                     @if (device.is_alive) {
-                      <span class="badge bg-success-subtle text-success text-uppercase">Online</span>
+                    <span class="badge bg-success-subtle text-success text-uppercase">Online</span>
                     } @else {
-                      <span class="badge bg-danger-subtle text-danger text-uppercase">Offline</span>
+                    <span class="badge bg-danger-subtle text-danger text-uppercase">Offline</span>
                     }
                   </td>
                   <td>
                     <div class="form-check form-switch form-switch-md">
-                      <input class="form-check-input" type="checkbox" role="switch" 
-                             [checked]="device.is_critical" 
-                             (change)="toggleVipStatus(device, $event)">
+                      <input class="form-check-input" type="checkbox" role="switch" [checked]="device.is_critical"
+                        (change)="toggleVipStatus(device, $event)">
                     </div>
                   </td>
                   <td>
@@ -116,43 +194,83 @@
                     </button>
                   </td>
                 </tr>
-              }
+                }
 
-              @if (!isLoading && filteredDevices().length === 0) {
+                @if (!isLoading && devices().length === 0) {
                 <tr>
-                  <td colspan="10" class="text-center p-4">
+                  <td colspan="11" class="text-center p-4">
                     <div class="text-muted">No se encontraron dispositivos.</div>
                   </td>
                 </tr>
+                }
+
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Paginación -->
+          @if (totalPages > 1) {
+          <div class="d-flex justify-content-between align-items-center mt-3">
+            <div class="text-muted fs-13">
+              Mostrando página <strong>{{ currentPage }}</strong> de <strong>{{ totalPages }}</strong>
+              (Total: {{ totalItems }} equipos)
+            </div>
+            <ul class="pagination pagination-sm mb-0">
+              <li class="page-item" [class.disabled]="currentPage === 1">
+                <a class="page-link" href="javascript:void(0)" (click)="changePage(currentPage - 1)">Anterior</a>
+              </li>
+
+              @for (p of visiblePages; track p) {
+              <li class="page-item" [class.active]="p === currentPage">
+                <a class="page-link" href="javascript:void(0)" (click)="changePage(p)">{{ p }}</a>
+              </li>
               }
 
-            </tbody>
-          </table>
+              <li class="page-item" [class.disabled]="currentPage === totalPages">
+                <a class="page-link" href="javascript:void(0)" (click)="changePage(currentPage + 1)">Siguiente</a>
+              </li>
+            </ul>
+          </div>
+          }
         </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Offcanvas para Detalles del Dispositivo -->
-<div class="offcanvas offcanvas-end" tabindex="-1" id="deviceOffcanvas" aria-labelledby="deviceOffcanvasLabel">
-  <div class="offcanvas-header border-bottom">
-    <h5 class="offcanvas-title" id="deviceOffcanvasLabel">
-      Detalles del Dispositivo
-    </h5>
-    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-  </div>
-  <div class="offcanvas-body p-0 overflow-hidden">
-    @if (isDeviceLoading) {
+  <!-- Offcanvas para Detalles del Dispositivo -->
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="deviceOffcanvas" aria-labelledby="deviceOffcanvasLabel">
+    <div class="offcanvas-header border-bottom">
+      <h5 class="offcanvas-title" id="deviceOffcanvasLabel">
+        Detalles del Dispositivo
+      </h5>
+      <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body p-0 overflow-hidden">
+      @if (isDeviceLoading) {
       <div class="d-flex justify-content-center align-items-center h-100">
         <div class="spinner-border text-primary" role="status">
           <span class="visually-hidden">Cargando...</span>
         </div>
       </div>
-    } @else if (selectedDevice) {
+      } @else if (selectedDevice) {
       <div data-simplebar style="height: 100%;">
         <div class="p-4">
-          <!-- Información General -->
+          <!-- Nav tabs -->
+          <ul class="nav nav-tabs nav-tabs-custom nav-success mb-3" role="tablist">
+            <li class="nav-item">
+              <a class="nav-link active" data-bs-toggle="tab" href="#tab-general" role="tab">General</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" data-bs-toggle="tab" href="#tab-snmp" role="tab">SNMP</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" data-bs-toggle="tab" href="#tab-asistencia" role="tab" (click)="loadAuditHistory(selectedDevice.device?.id)">Asistencia</a>
+            </li>
+          </ul>
+
+          <div class="tab-content text-muted">
+            <div class="tab-pane active" id="tab-general" role="tabpanel">
+              <!-- Información General -->
           <div class="text-center mb-4">
             <div class="avatar-md mx-auto mb-3">
               <div class="avatar-title bg-light text-primary rounded-circle fs-36">
@@ -163,9 +281,9 @@
             <p class="text-muted mb-0 fs-13">{{ selectedDevice.device?.mac_address || 'Sin MAC' }}</p>
             <div class="mt-2">
               @if (selectedDevice.device?.is_alive) {
-                <span class="badge bg-success">Online</span>
+              <span class="badge bg-success">Online</span>
               } @else {
-                <span class="badge bg-danger">Offline</span>
+              <span class="badge bg-danger">Offline</span>
               }
             </div>
           </div>
@@ -178,7 +296,8 @@
               <tbody>
                 <tr>
                   <td class="fw-medium">Hostname</td>
-                  <td>{{ (selectedDevice.device?.hostname === 'unknown' ? 'Desconocido' : selectedDevice.device?.hostname) || 'N/A' }}</td>
+                  <td>{{ (selectedDevice.device?.hostname === 'unknown' ? 'Desconocido' :
+                    selectedDevice.device?.hostname) || 'N/A' }}</td>
                 </tr>
                 <tr>
                   <td class="fw-medium">Última Vez Visto</td>
@@ -197,54 +316,58 @@
           <!-- Inventario / Hardware -->
           <h6 class="fs-14 mb-3 text-uppercase text-muted">Hardware / OS / Detalles</h6>
           @if (selectedDevice.inventory && selectedDevice.inventory.read_method !== 'none') {
-            <div class="table-responsive">
-              <table class="table table-sm table-borderless align-middle mb-0">
-                <tbody>
-                  <tr>
-                    <td class="fw-medium">Fabricante</td>
-                    <td>{{ (selectedDevice.inventory.manufacturer === 'unknown' ? 'Desconocido' : selectedDevice.inventory.manufacturer) || 'Desconocido' }}</td>
-                  </tr>
-                  <tr>
-                    <td class="fw-medium">Modelo</td>
-                    <td>{{ (selectedDevice.inventory.model === 'unknown' ? 'Desconocido' : selectedDevice.inventory.model) || 'Desconocido' }}</td>
-                  </tr>
-                  <tr>
-                    <td class="fw-medium">Sistema Operativo</td>
-                    <td>{{ selectedDevice.inventory.os_info || 'N/A' }}</td>
-                  </tr>
-                  <tr>
-                    <td class="fw-medium">Dispositivo</td>
-                    <td>{{ (selectedDevice.inventory.device_type === 'unknown' ? 'Desconocido' : selectedDevice.inventory.device_type) || 'N/A' }}</td>
-                  </tr>
-                  <tr>
-                    <td class="fw-medium">Procesador</td>
-                    <td>{{ selectedDevice.inventory.cpu_model || 'N/A' }}</td>
-                  </tr>
-                  <tr>
-                    <td class="fw-medium">Memoria RAM</td>
-                    <td>{{ selectedDevice.inventory.ram_mb ? (selectedDevice.inventory.ram_mb + ' MB') : 'N/A' }}</td>
-                  </tr>
-                  <tr>
-                    <td class="fw-medium">Disco Duro</td>
-                    <td>{{ selectedDevice.inventory.disk_gb ? (selectedDevice.inventory.disk_gb + ' GB') : 'N/A' }}</td>
-                  </tr>
-                  <tr>
-                    <td class="fw-medium">Ubicación</td>
-                    <td>{{ selectedDevice.inventory.location || 'N/A' }}</td>
-                  </tr>
-                  <tr>
-                    <td class="fw-medium">Contacto</td>
-                    <td>{{ selectedDevice.inventory.contact || 'N/A' }}</td>
-                  </tr>
-                  <tr>
-                    <td class="fw-medium">Gráfica</td>
-                    <td class="text-wrap" style="max-width: 200px;">{{ selectedDevice.inventory.description || 'N/A' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-borderless align-middle mb-0">
+              <tbody>
+                <tr>
+                  <td class="fw-medium">Fabricante</td>
+                  <td>{{ (selectedDevice.inventory.manufacturer === 'unknown' ? 'Desconocido' :
+                    selectedDevice.inventory.manufacturer) || 'Desconocido' }}</td>
+                </tr>
+                <tr>
+                  <td class="fw-medium">Modelo</td>
+                  <td>{{ (selectedDevice.inventory.model === 'unknown' ? 'Desconocido' : selectedDevice.inventory.model)
+                    || 'Desconocido' }}</td>
+                </tr>
+                <tr>
+                  <td class="fw-medium">Sistema Operativo</td>
+                  <td>{{ selectedDevice.inventory.os_info || 'N/A' }}</td>
+                </tr>
+                <tr>
+                  <td class="fw-medium">Dispositivo</td>
+                  <td>{{ (selectedDevice.inventory.device_type === 'unknown' ? 'Desconocido' :
+                    selectedDevice.inventory.device_type) || 'N/A' }}</td>
+                </tr>
+                <tr>
+                  <td class="fw-medium">Procesador</td>
+                  <td>{{ selectedDevice.inventory.cpu_model || 'N/A' }}</td>
+                </tr>
+                <tr>
+                  <td class="fw-medium">Memoria RAM</td>
+                  <td>{{ selectedDevice.inventory.ram_mb ? (selectedDevice.inventory.ram_mb + ' MB') : 'N/A' }}</td>
+                </tr>
+                <tr>
+                  <td class="fw-medium">Disco Duro</td>
+                  <td>{{ selectedDevice.inventory.disk_gb ? (selectedDevice.inventory.disk_gb + ' GB') : 'N/A' }}</td>
+                </tr>
+                <tr>
+                  <td class="fw-medium">Ubicación</td>
+                  <td>{{ selectedDevice.inventory.location || 'N/A' }}</td>
+                </tr>
+                <tr>
+                  <td class="fw-medium">Contacto</td>
+                  <td>{{ selectedDevice.inventory.contact || 'N/A' }}</td>
+                </tr>
+                <tr>
+                  <td class="fw-medium">Gráfica</td>
+                  <td class="text-wrap" style="max-width: 200px;">{{ selectedDevice.inventory.description || 'N/A' }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           } @else {
-            <p class="text-muted fs-13">No hay información de hardware disponible.</p>
+          <p class="text-muted fs-13">No hay información de hardware disponible.</p>
           }
 
           <hr class="my-4 border-dashed">
@@ -252,15 +375,15 @@
           <!-- Puertos -->
           <h6 class="fs-14 mb-3 text-uppercase text-muted">Puertos TCP Abiertos</h6>
           @if (openPorts.length > 0) {
-            <div class="d-flex flex-wrap gap-2">
-              @for (port of openPorts; track port.port) {
-                <span class="badge bg-info-subtle text-info">
-                  {{ port.port }} / {{ getServiceName(port.port) }}
-                </span>
-              }
-            </div>
+          <div class="d-flex flex-wrap gap-2">
+            @for (port of openPorts; track port.port) {
+            <span class="badge bg-info-subtle text-info">
+              {{ port.port }} / {{ getServiceName(port.port) }}
+            </span>
+            }
+          </div>
           } @else {
-            <p class="text-muted fs-13">No se detectaron puertos abiertos.</p>
+          <p class="text-muted fs-13">No se detectaron puertos abiertos.</p>
           }
 
           <hr class="my-4 border-dashed">
@@ -268,22 +391,196 @@
           <!-- Estadísticas -->
           <h6 class="fs-14 mb-3 text-uppercase text-muted">Estadísticas</h6>
           @if (selectedDevice.stats) {
-            <div class="row text-center">
-              <div class="col-6">
-                <h5 class="mb-1">{{ selectedDevice.stats.rtt_avg_ms || '0' }} ms</h5>
-                <p class="text-muted fs-12 mb-0">Latencia (Promedio)</p>
-              </div>
-              <div class="col-6">
-                <h5 class="mb-1">{{ selectedDevice.stats.uptime_score || '0' }} / 100</h5>
-                <p class="text-muted fs-12 mb-0">Score Uptime</p>
-              </div>
+          <div class="row text-center">
+            <div class="col-6">
+              <h5 class="mb-1">{{ selectedDevice.stats.rtt_avg_ms || '0' }} ms</h5>
+              <p class="text-muted fs-12 mb-0">Latencia (Promedio)</p>
             </div>
+            <div class="col-6">
+              <h5 class="mb-1">{{ selectedDevice.stats.uptime_score || '0' }} / 100</h5>
+              <p class="text-muted fs-12 mb-0">Score Uptime</p>
+            </div>
+          </div>
           } @else {
-            <p class="text-muted fs-13">No hay estadísticas guardadas.</p>
+          <p class="text-muted fs-13">No hay estadísticas guardadas.</p>
           }
+
+            </div>
+
+            <div class="tab-pane" id="tab-snmp" role="tabpanel">
+              <!-- Rendimiento SNMP -->
+              <h6 class="fs-14 mb-3 text-uppercase text-muted">Rendimiento (SNMP)</h6>
+          @if (selectedDevice.device?.is_critical) {
+            @if (deviceMetrics && deviceMetrics.length > 0) {
+              <div class="mt-3">
+                <canvas id="snmpChart" width="400" height="250"></canvas>
+              </div>
+            } @else {
+              <p class="text-muted fs-13">Recolectando datos... (Espera unos minutos)</p>
+            }
+          } @else {
+            <div class="alert alert-warning border-0 fs-13">
+              Activa el <strong>Monitoreo Crítico (VIP)</strong> para recolectar métricas avanzadas (CPU/RAM/Tráfico).
+            </div>
+              }
+            </div>
+
+            <div class="tab-pane" id="tab-asistencia" role="tabpanel">
+              <h6 class="fs-14 mb-3 text-uppercase text-muted">Auditoría de Asistencia</h6>
+              
+              <div class="card bg-light border-0 shadow-none mb-3">
+                <div class="card-body">
+                  <div class="d-flex align-items-center mb-3">
+                    <div class="form-check form-switch form-switch-md me-3">
+                      <input class="form-check-input" type="checkbox" role="switch" id="auditSwitch" 
+                             [checked]="selectedDevice.device?.audit_enabled"
+                             (change)="toggleAuditStatus(selectedDevice.device?.id, $event)">
+                      <label class="form-check-label" for="auditSwitch">Auditar Dispositivo</label>
+                    </div>
+                  </div>
+                  
+                  <div class="mb-2">
+                    <label class="form-label fs-13 mb-1">Empleado Asignado</label>
+                    <div class="input-group input-group-sm">
+                      <input type="text" class="form-control" placeholder="Ej. Juan Pérez" 
+                             [value]="selectedDevice.device?.employee_name || ''"
+                             #employeeNameInput>
+                      <button class="btn btn-primary" type="button" 
+                              (click)="saveAuditConfig(selectedDevice.device?.id, employeeNameInput.value, selectedDevice.device?.audit_enabled)">
+                        Guardar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              @if (isAuditLoading) {
+                <div class="text-center py-4">
+                  <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                </div>
+              } @else if (auditHistory && auditHistory.history.length > 0) {
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle table-nowrap mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Ingreso</th>
+                        <th>Salida</th>
+                        <th>Tiempo</th>
+                        <th>Estado</th>
+                        <th>Interrupciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (record of auditHistory.history; track record.date) {
+                        <tr>
+                          <td>{{ record.date | date:'dd/MM/yyyy' }}</td>
+                          <td>{{ record.first_online ? (record.first_online | date:'shortTime') : '-' }}</td>
+                          <td>{{ record.last_offline ? (record.last_offline | date:'shortTime') : '-' }}</td>
+                          <td>{{ record.formatted_time || (record.total_worked_hours + 'h') }}</td>
+                          <td>
+                            @if (record.status === 'Puntual') {
+                              <span class="badge bg-success-subtle text-success">Puntual</span>
+                            } @else if (record.status === 'Tarde') {
+                              <span class="badge bg-warning-subtle text-warning">Tarde</span>
+                            } @else {
+                              <span class="badge bg-danger-subtle text-danger">Ausente</span>
+                            }
+                          </td>
+                          <td>
+                            <div class="dropdown">
+                              <button class="btn btn-sm dropdown-toggle d-flex align-items-center gap-1 {{ (record.disconnections && record.disconnections.length > 0) ? 'btn-soft-danger' : 'btn-soft-secondary text-muted' }}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="ri-error-warning-line"></i> {{ record.disconnections?.length || 0 }} {{ (record.disconnections?.length === 1) ? 'corte' : 'cortes' }}
+                              </button>
+                              <ul class="dropdown-menu p-2 dropdown-menu-end shadow" style="min-width: 250px;">
+                                <li class="px-2 py-1 border-bottom mb-1 text-muted fs-12 fw-medium">Detalle de Interrupciones</li>
+                                @if (record.disconnections && record.disconnections.length > 0) {
+                                  @for (disc of record.disconnections; track disc.start) {
+                                    <li class="px-2 py-1 fs-12 d-flex justify-content-between align-items-center">
+                                      <span>
+                                        <i class="ri-time-line text-muted me-1"></i> 
+                                        {{ disc.start | date:'shortTime' }} - {{ disc.is_ongoing ? 'Ahora' : (disc.end | date:'shortTime') }}
+                                      </span>
+                                      <span class="badge {{ disc.is_ongoing ? 'bg-danger pulse-badge' : 'bg-light text-dark border' }}">
+                                        {{ disc.formatted_duration }}
+                                      </span>
+                                    </li>
+                                  }
+                                } @else {
+                                  <li class="px-2 py-2 fs-12 text-center text-muted">
+                                    <i class="ri-check-line text-success me-1"></i> No hubo interrupciones este día
+                                  </li>
+                                }
+                              </ul>
+                            </div>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <p class="text-muted fs-13 text-center py-4">No hay historial de asistencia para este dispositivo o la auditoría está desactivada.</p>
+              }
+            </div>
+          </div>
 
         </div>
       </div>
-    }
+      }
+    </div>
+  </div>
+
+<!-- Modal de Confirmación VIP -->
+<div class="modal fade" id="vipConfirmModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="false" style="background-color: rgba(0, 0, 0, 0.5); z-index: 1055;">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 overflow-hidden">
+      <div class="modal-body text-center p-4">
+        <div class="mt-4">
+          <div class="fs-15 mx-4 mx-sm-5">
+            <h4 class="mb-3">¿Confirmar Acción Múltiple?</h4>
+            <p class="text-muted mb-4">
+              Estás a punto de marcar <strong>{{ selectedDeviceIds().length }}</strong> dispositivos como 
+              <strong [class.text-success]="pendingBulkAction === 'vip_on'" [class.text-warning]="pendingBulkAction === 'vip_off'">
+                {{ pendingBulkAction === 'vip_on' ? 'VIP (Críticos)' : 'Normales' }}
+              </strong>.
+            </p>
+          </div>
+        </div>
+        <div class="d-flex gap-2 justify-content-center mt-4 mb-2">
+          <button type="button" class="btn w-sm btn-light border" data-bs-dismiss="modal">
+            <i class="ri-close-line align-bottom me-1"></i> Cancelar
+          </button>
+          <button type="button" class="btn w-sm" [class.btn-success]="pendingBulkAction === 'vip_on'" [class.btn-warning]="pendingBulkAction === 'vip_off'" (click)="executeBulkAction()" [disabled]="isLoading">
+            @if (isLoading) {
+              <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            } @else {
+              <i class="ri-check-line align-bottom me-1"></i>
+            }
+            Confirmar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Éxito de Auditoría -->
+<div class="modal fade" id="auditSuccessModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="false" style="background-color: rgba(0, 0, 0, 0.5); z-index: 1055;">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 overflow-hidden">
+      <div class="modal-body text-center p-4">
+        <div class="mt-2">
+          <div class="avatar-sm mx-auto mb-3">
+            <div class="avatar-title bg-success-subtle text-success rounded-circle fs-24">
+              <i class="ri-check-line"></i>
+            </div>
+          </div>
+          <h4 class="mb-2 fs-16">Guardado Exitoso</h4>
+          <p class="text-muted mb-4 fs-13" id="auditSuccessMessage">Configuración de auditoría actualizada</p>
+          <button type="button" class="btn btn-success w-100" data-bs-dismiss="modal">Aceptar</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>

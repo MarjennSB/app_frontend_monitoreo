@@ -9,6 +9,7 @@ export interface Device {
     hostname_method: string | null;
     is_alive: boolean;
     is_critical?: boolean;
+    os_guess?: string;
     first_seen_at: string;
     last_seen_at: string;
     open_ports?: number[];

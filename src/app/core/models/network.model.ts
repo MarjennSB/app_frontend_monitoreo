@@ -6,6 +6,9 @@ export interface Network {
   scan_interval_minutes?: number;
   scan_interval?: number;
   is_active?: boolean;
+  expected_check_in?: string | null;
+  expected_check_out?: string | null;
+  tolerance_minutes?: number | null;
   created_at: string;
   updated_at: string;
 }

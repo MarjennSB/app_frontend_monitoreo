@@ -40,4 +40,15 @@ export class NetworksService {
   getNetworkScans(id: number): Observable<any> {
     return this.http.get(`${this.apiUrl}/${id}/scans`);
   }
+
+  updateAuditConfig(id: number, data: { expected_check_in: string, expected_check_out: string, tolerance_minutes: number }): Observable<any> {
+    return this.http.put(`${this.apiUrl}/${id}/audit-config`, data);
+  }
+
+  bulkSetStatus(networkIds: number[], isActive: boolean): Observable<any> {
+    return this.http.put(`${this.apiUrl}/bulk/status`, {
+      network_ids: networkIds,
+      is_active: isActive
+    });
+  }
 }
